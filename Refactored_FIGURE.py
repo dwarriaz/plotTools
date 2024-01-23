@@ -8,11 +8,13 @@ import re
 ############## COMMAND LINE ARGS ##############
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--outputFile','-o',default='UBE2C.pdf',type=str,action='store',help='output file goes here')
-parser.add_argument('--pslFiles','-i',default='DMSO_H358.hg38.psl,AMG_H358.hg38.psl',type=str,action='store',help='path/`to/pslFile.psl')
-parser.add_argument('--gtfFile','-g',default='gencode.v45.chr_patch_hapl_scaff.annotation.gtf',type=str,action='store',help='/path/to/genome.gtf')
+parser.add_argument('--outputFile','-o',default='output/UBE2C.pdf',type=str,action='store',help='output file goes here')
+parser.add_argument('--pslFiles','-i',default='data/DMSO_H358.hg38.psl,data/AMG_H358.hg38.psl',type=str,action='store',help='path/`to/pslFile.psl')
+parser.add_argument('--gtfFile','-g',default='data/gencode.v45.chr_patch_hapl_scaff.annotation.gtf',type=str,action='store',help='/path/to/genome.gtf')
 parser.add_argument('--genoCoord','-c',default='chr20:45812644-45816952',type=str,action='store',help='Genomic Coordinates')
-parser.add_argument('--rmskTable','-r',default='temp.table',type=str,action='store',help='rmsk Table')
+parser.add_argument('--rmskTable','-r',default='data/rmsk.table',type=str,action='store',help='rmsk Table')
+parser.add_argument('--gene','-G',default='',type=str,action='store',help='Gene of interest')
+
 
 args = parser.parse_args()
 
@@ -44,41 +46,53 @@ class psl:
             for alignment in currentLayer:
                 rawdata.remove(alignment)
             middleLayerValues.append(currentLayer)
+        
+        #for y in range(0,len(middleLayerValues)):
         for y in range(0,len(middleLayerValues)):
-            for data in middleLayerValues[y]:
-                first = mplpatches.Rectangle((data[0],y+0.25),(data[1]-data[0]),0.1,
-                                            facecolor = color,
-                                            edgecolor = 'black',
-                                            linewidth = 0.25)
-                panelObject.add_patch(first)
-                blockStart = data[3].split(',')
-                blockwidth = data[4].split(',')
-                for x in range(0,data[2]):
-                    second = mplpatches.Rectangle((int(blockStart[x]),y),int(blockwidth[x]),0.5,
+            if y <= 12:
+                for data in middleLayerValues[y]:
+                    first = mplpatches.Rectangle((data[0],y+0.25),(data[1]-data[0]),0.1,
                                                 facecolor = color,
                                                 edgecolor = 'black',
                                                 linewidth = 0.25)
-                    panelObject.add_patch(second)
-        panelObject.set_xlim(float(start),float(stop))
-        panelObject.set_ylim(0,len(middleLayerValues)+1.8)
-        panelObject.set_xlabel(title,fontsize=6)
+                    panelObject.add_patch(first)
+                    blockStart = data[3].split(',')
+                    blockwidth = data[4].split(',')
+                    for x in range(0,data[2]):
+                        second = mplpatches.Rectangle((int(blockStart[x]),y),int(blockwidth[x]),0.5,
+                                                    facecolor = color,
+                                                    edgecolor = 'black',
+                                                    linewidth = 0.25)
+                        panelObject.add_patch(second)
+            panelObject.set_xlim(float(start),float(stop))
+            minimum_Y = min([12,len(middleLayerValues)])
+            panelObject.set_ylim(0,minimum_Y+1.8)
+            panelObject.set_xlabel(title,fontsize=6)
 
 ########### GTF PLOTTING #################
 
 class gtf:
-    def gtfPlot(rawFile,panelObject,title):
+    def gtfDataProcessing(rawFile,gene=''):
         gtfData = {}
         with open(rawFile,'r') as gtfFile:
             for line in gtfFile:
                 if line.split('\t')[0] == chromosome and int(line.split('\t')[4]) > start and int(line.split('\t')[3]) < stop:
                     transcript = line.split('\t')[8].split(';')[1]
-                    if transcript in gtfData.keys():
-                        gtfData[transcript].append(line.split('\t'))
+                    if len(gene) != 0 and line.split('\t')[1] == gene:
+                        if transcript in gtfData.keys():
+                            gtfData[transcript].append(line.split('\t'))
+                        else:
+                            gtfData.update({transcript:[line.split('\t')]})
                     else:
-                        gtfData.update({transcript:[line.split('\t')]})
+                        if transcript in gtfData.keys():
+                            gtfData[transcript].append(line.split('\t'))
+                        else:
+                            gtfData.update({transcript:[line.split('\t')]})
 
         widthDict =  {'transcript':0.05, 'exon':0.25, 'CDS':0.5}
+
         plotValues = []
+
         for key,value in gtfData.items():
             transcript = []
             for line in value:
@@ -87,8 +101,13 @@ class gtf:
             if len(transcript) != 0:
                 plotValues.append(transcript)
         plotValues.sort(key = lambda x:x[0][0])
+
+        return plotValues
+
+    def gtfPlot(plotValues,panelObject,title):
         layerValues = []
-        while len(plotValues):
+        widthDict =  {'transcript':0.05, 'exon':0.25, 'CDS':0.5}
+        while len(plotValues) and len(layerValues) <= 8:
             currentLayer = []
             for transcript in plotValues:
                 if len(currentLayer) == 0:
@@ -103,8 +122,8 @@ class gtf:
         panelObject.set_ylim(0,len(layerValues)+1.8)
         panelObject.set_xlabel(title, fontsize = 6, weight = 'bold')
         panelObject.tick_params(labelleft=False)
-        panelObject.set_xticks([start,stop])
-        panelObject.set_xticklabels([start,stop],fontsize = 4,weight='bold')
+        panelObject.set_xticks([xticks for xticks in range(start,stop,1000)])
+        panelObject.set_xticklabels([label for label in range(start,stop,1000)],fontsize = 4,weight='bold')
         panelObject.set_yticks([])
         for y in range(0,len(layerValues)):
             for transcript in layerValues[y]:
@@ -129,18 +148,19 @@ class genomeBrowser:
                     repeat = line.split('\t')
                     rmskData.update({line.split('\t')[10]:repeat})
 
-        repClassDict =  {'SINE':(Golden_brown, 0), 'LINE':(Wine, 1), 'LTR':(Jasmine, 2)} ### change colors later
+        repClassDict =  {'SINE':[Golden_brown, 0], 'LINE':[Wine, 1], 'LTR':[Jasmine, 2]} ### change colors later
         
         panelObject.set_xlim(float(start),float(stop))
-        panelObject.set_ylim(0,1.8)
+        #panelObject.set_ylim(0,1.8)
         panelObject.set_xlabel('Repeat Masker', fontsize = 6, weight = 'bold')
-        panelObject.set_yticks([1,2,3])
-        panelObject.set_yticklabels(['SINE','LINE','LTR'], fontsize = 6)
+        #panelObject.set_yticks([1,2,3])
+        #panelObject.set_yticklabels(['SINE','LINE','LTR'], fontsize = 6)
         panelObject.set_xticks([])
         #panelObject.set_title('Repeat Masker',fontsize = 6,weight='bold')
         for repName, repeat in rmskData.items():
-            print(repeat[11])
+            layer_limit = set()
             if repeat[11] in repClassDict.keys():
+                layer_limit.add(repClassDict[repeat[11]][1])
                 y_axis  = repClassDict[repeat[11]][1]
                 width = int(repeat[7])-int(repeat[6])
                 temp = mplpatches.Rectangle((float(repeat[6]),(0.5+y_axis)),float(width),.75,
@@ -148,6 +168,7 @@ class genomeBrowser:
                         edgecolor = 'black',
                         linewidth = 0.25)
                 panelObject.add_patch(temp)
+        panelObject.set_ylim(0,min(list(layer_limit))+.8)
 
 
 ############# DEFINE FILES ###############
@@ -181,7 +202,7 @@ Cal_poly_green = (44/255, 85/255, 48/255)
 Gencode = plt.axes([.3/figureWidth,3/figureHeight,panelWidth/figureWidth,panelHeight/figureHeight])
 psl1 = plt.axes([.3/figureWidth,1.4/figureHeight,panelWidth/figureWidth,1/figureHeight])
 psl2 = plt.axes([.3/figureWidth,0.281/figureHeight,panelWidth/figureWidth,1/figureHeight])
-rmask = plt.axes([.3/figureWidth,2.2/figureHeight,panelWidth/figureWidth,0.5/figureHeight])
+rmask = plt.axes([.3/figureWidth,2.35/figureHeight,panelWidth/figureWidth,0.25/figureHeight])
 
 #Gencode = plt.axes([.2/figureWidth,3.5/figureHeight,panelWidth/figureWidth,panelHeight/figureHeight])
 #psl1 = plt.axes([.2/figureWidth,1.9/figureHeight,panelWidth/figureWidth,1/figureHeight])
@@ -196,7 +217,8 @@ stop = int(stop) + 100
 
 ########## FILE PLOTTING ############
 
-gtf.gtfPlot(args.gtfFile,Gencode,'GENCODE V45')
+
+gtf.gtfPlot(gtf.gtfDataProcessing(args.gtfFile,args.gene),Gencode,'Gencode V45')
 psl.pslPlot(args.pslFiles.split(',')[0],psl1,'DMSO-Treated',Lapis_lazuli)
 psl.pslPlot(args.pslFiles.split(',')[1],psl2,'AMG-Treated',Cal_poly_green)
 genomeBrowser.rmskPlot(args.rmskTable,rmask)
@@ -205,11 +227,13 @@ genomeBrowser.rmskPlot(args.rmskTable,rmask)
 for panel in psl1,psl2:
     panel.tick_params(bottom=False, labelbottom=False,left=False, labelleft=False,
                    right=False, labelright=False,top=False, labeltop=False)
+    panel.margins(x=0)
     for orientation in ['top','bottom','right','left']:
         panel.spines[orientation].set_visible(False)
 for panel in Gencode,rmask:
     for orientation in ['top','bottom','right','left']:
             panel.spines[orientation].set_visible(False)
+    panel.margins(x=0)
 rmask.tick_params(bottom=False, labelbottom=False,left=False, labelleft=True,
                    right=False, labelright=False,top=False, labeltop=False)
 
