@@ -149,7 +149,7 @@ class genomeBrowser:
         with open(rmskTable,'r') as rmskFile:
             next(rmskFile)
             for line in rmskFile:
-                if line.split('\t')[5] == chromosome and int(line.split('\t')[6]) > start and int(line.split('\t')[7]) < stop:
+                if line.split('\t')[5] == chromosome and int(line.split('\t')[6]) >= start and int(line.split('\t')[7]) <= stop:
                     repeat = line.split('\t')
                     rmskData.update({line.split('\t')[10]:repeat})
 
@@ -161,7 +161,7 @@ class genomeBrowser:
                 layer_limit.add(repClassDict[repeat[11]][1])
                 y_axis = repClassDict[repeat[11]][1]
 
-        return (min(list(layer_limit)),rmskData)
+        return (max(list(layer_limit)),rmskData)
 
     def rmskPlot(rmskData,panelObject,y_max): 
 
@@ -176,16 +176,17 @@ class genomeBrowser:
         
         layer_limit = set()
         for repName, repeat in rmskData.items():
+            print(repName)
             if repeat[11] in repClassDict.keys():
                 layer_limit.add(repClassDict[repeat[11]][1])
                 y_axis = repClassDict[repeat[11]][1]       
                 width = int(repeat[7])-int(repeat[6])
-                temp = mplpatches.Rectangle((float(repeat[6]),(0.5+y_axis)),float(width),.75,
+                temp = mplpatches.Rectangle((float(repeat[6]),y_axis+0.02),float(width),.75,
                         facecolor = repClassDict[repeat[11]][0] if repeat[11] in repClassDict.keys() else '#ceb1be',
                         edgecolor = 'black',
                         linewidth = 0.25)
                 panelObject.add_patch(temp)
-        panelObject.set_ylim(0,min(list(layer_limit))+1)
+        panelObject.set_ylim(0,max(list(layer_limit))+1)
 
 
 ############# DEFINE FILES ###############
@@ -215,6 +216,7 @@ gtfPlottingData = gtf.gtfDataProcessing(args.gtfFile,args.gene)
 psl1PlottingData = psl.pslData(pslFile1)
 psl2PlottingData = psl.pslData(pslFile2)
 rmskPlottingData = genomeBrowser.rmskData(args.rmskTable)
+print(rmskPlottingData)
 
 total = len(gtfPlottingData)+len(psl1PlottingData)+len(psl2PlottingData)+rmskPlottingData[0]+1
 
@@ -233,19 +235,10 @@ psl1StackHeight = psl2StackHeight + (len(psl2PlottingData)/total)
 rmskStackHeight = psl1StackHeight + (len(psl1PlottingData)/total) - .07
 gtfStackHeight = rmskStackHeight + ((rmskPlottingData[0]+1)/total) + .12
 
-psl2 = plt.axes([.3/figureWidth,psl2StackHeight/figureHeight,panelWidth/figureWidth,(len(psl2PlottingData)/total)/figureHeight])
-psl1 = plt.axes([.3/figureWidth,psl1StackHeight/figureHeight,panelWidth/figureWidth,(len(psl1PlottingData)/total)/figureHeight])
-rmask = plt.axes([.3/figureWidth,rmskStackHeight/figureHeight,panelWidth/figureWidth,((rmskPlottingData[0]+1)/total)/figureHeight])
-Gencode = plt.axes([.3/figureWidth,gtfStackHeight/figureHeight,panelWidth/figureWidth,(len(gtfPlottingData)/(total+(total*.45)))/figureHeight])
-
-print('psl2 Metrics:')
-print([.3/figureWidth,psl2StackHeight/figureHeight,panelWidth/figureWidth,(len(psl2PlottingData)/total)/figureHeight])
-print('psl1 Metrics:')
-print([.3/figureWidth,psl1StackHeight/figureHeight,panelWidth/figureWidth,(len(psl1PlottingData)/total)/figureHeight])
-print('rmsk metrics:')
-print([.3/figureWidth,rmskStackHeight/figureHeight,panelWidth/figureWidth,((rmskPlottingData[0]+1)/total)/figureHeight])
-print('GTF Metrics:')
-print([.3/figureWidth,gtfStackHeight/figureHeight,panelWidth/figureWidth,(len(gtfPlottingData)/(total+(total*.45)))/figureHeight])
+psl2 = plt.axes([0.04615384615384615, 0.02, 0.9230769230769231, 0.29411764705882354])
+psl1 = plt.axes([0.04615384615384615, 0.31411764705882356, 0.9230769230769231, 0.17647058823529413])
+rmask = plt.axes([0.04615384615384615, 0.44058823529411765, 0.9230769230769231, 0.058823529411764705])
+Gencode = plt.axes([0.04615384615384615, 0.5994117647058823, 0.9230769230769231, 0.32454361054766734])
 
 
 #Gencode = plt.axes([.2/figureWidth,3.5/figureHeight,panelWidth/figureWidth,panelHeight/figureHeight])
