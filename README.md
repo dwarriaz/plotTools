@@ -1,5 +1,12 @@
 # plotTools
 Custom python scripts to make custom Genome Browser plots from .sam, .bam, .gtf, Genome tables, and .psl files
 
-## COMMANDS TO USE 
-python3 Refactored_FIGURE.py -c chr11:65499024-65499999 -G MALAT1
+## Arguments and Usage  
+-o output file 
+-i psl file 
+-g gencode gtf file 
+-c coordinates of interest (cannot include ',' in integer)
+-r rmsk table (use hg38; select * from rmsk;)  
+-G gene name for annotated transcript (optional)  
+
+ 
